@@ -8,29 +8,35 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-        /* 網頁 UI 按鈕樣式：一開始隱藏，辨識成功後才顯示 */
+        /* UI 按鈕樣式：辨識成功後才會浮現 */
         #ar-button {
             position: fixed;
             bottom: 50px;
             left: 50%;
             transform: translateX(-50%);
-            padding: 15px 30px;
-            background-color: #0056b3;
-            color: white;
+            padding: 18px 32px;
+            background-color: #00e676; /* 改成亮綠色更有科技感 */
+            color: #121212;
             border: none;
-            border-radius: 25px;
-            font-size: 18px;
+            border-radius: 30px;
+            font-size: 20px;
             font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            display: none; /* 預設隱藏 */
+            box-shadow: 0 6px 20px rgba(0,230,118,0.4);
+            display: none; 
             z-index: 999;
             cursor: pointer;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.05); }
+            100% { transform: translateX(-50%) scale(1); }
         }
     </style>
 </head>
 <body>
 
-    <button id="ar-button">點擊前往戶外投放 1:1 真車</button>
+    <button id="ar-button">🏍️ 投放 1:1 真車到空地</button>
 
     <a-scene mindar-image="imageTargetSrc: ./targets.mind; missTolerance: 10;" 
              embedded color-space="sRGB" 
@@ -45,34 +51,51 @@
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity id="my-target" mindar-image-target="targetIndex: 0">
-            <a-gltf-model src="#r3Model" 
-                          position="0 0 0" 
-                          scale="0.05 0.05 0.05" 
-                          rotation="90 0 0">
-            </a-gltf-model>
+            <a-gltf-model src="#r3Model" position="0 0 0" scale="0.05 0.05 0.05" rotation="90 0 0"></a-gltf-model>
         </a-entity>
-        
     </a-scene>
 
     <script>
-        // 監聽 MindAR 辨識成功的事件
         const targetEntity = document.querySelector('#my-target');
         const arButton = document.querySelector('#ar-button');
 
-        targetEntity.addEventListener("targetFound", event => {
-            console.log("成功照到機車目錄照片！");
-            arButton.style.display = "block"; // 秀出 1:1 投放按鈕
+        // 模型在 GitHub 上的絕對路徑 (AR 跳轉必須使用絕對路徑)
+        // 系統會自動根據當前網址抓取正確的 glb 路徑
+        const currentURL = window.location.href.replace('index.html', '');
+        const modelUrl = currentURL + "yamaha_yzf-r3_2017.glb"; 
+
+        // 1. 監聽目錄辨識
+        targetEntity.addEventListener("targetFound", () => {
+            arButton.style.display = "block"; 
         });
 
-        targetEntity.addEventListener("targetLost", event => {
-            console.log("相機移開了目錄。");
-            // 你可以決定移開時按鈕要不要消失，這裡我們讓它保持顯示，方便使用者按
-        });
-
-        // 按鈕點擊事件：切換到 1:1 平面投放
+        // 2. 點擊按鈕跳轉原生 1:1 平面偵測
         arButton.addEventListener("click", () => {
-            alert("正在切換至平面偵測模式... 請帶手機到空曠地面！");
-            // 這裡後續會加上觸發原生手機內建 WebXR 平面偵測（Scene Viewer）的代碼
+            // 判斷是否為 iOS 裝置 (iPhone/iPad)
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+            if (isIOS) {
+                // 【iPhone 方案】：使用 Apple AR Quick Look 模式
+                // 這裡我們建立一個隱藏的 <a> 標籤，並將 rel 設為 ar，這是 Apple 官方指定的原生跳轉格式
+                const anchor = document.createElement('a');
+                anchor.setAttribute('rel', 'ar');
+                anchor.setAttribute('href', modelUrl);
+                
+                // 建立一個隱藏的圖片作為點擊載體
+                const img = document.createElement('img');
+                img.src = "yamahaR32017.jpg"; 
+                anchor.appendChild(img);
+                
+                document.body.appendChild(anchor);
+                anchor.click(); // 觸發跳轉
+                document.body.removeChild(anchor);
+            } else {
+                // 【Android 方案】：使用 Google Scene Viewer 模式
+                // 透過特定 intent 網址，直接喚醒 Android 系統內建的 ARCore 底層
+                const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(modelUrl)}&mode=ar_only&resizable=false&title=Yamaha%20R3%201:1%20展示#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;end;`;
+                
+                window.location.href = sceneViewerUrl; // 觸發跳轉
+            }
         });
     </script>
 </body>
