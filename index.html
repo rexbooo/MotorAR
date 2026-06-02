@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yamaha R3 AR 導購系統</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    
+    <style>
+        /* 網頁 UI 按鈕樣式：一開始隱藏，辨識成功後才顯示 */
+        #ar-button {
+            position: fixed;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            background-color: #0056b3;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: none; /* 預設隱藏 */
+            z-index: 999;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <button id="ar-button">點擊前往戶外投放 1:1 真車</button>
+
+    <a-scene mindar-image="imageTargetSrc: ./targets.mind; missTolerance: 10;" 
+             embedded color-space="sRGB" 
+             renderer="colorManagement: true, physicallyCorrectLights" 
+             vr-mode-ui="enabled: false" 
+             device-orientation-permission-ui="enabled: false">
+        
+        <a-assets>
+            <a-asset-item id="r3Model" src="./yamaha_yzf-r3_2017.glb"></a-asset-item>
+        </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity id="my-target" mindar-image-target="targetIndex: 0">
+            <a-gltf-model src="#r3Model" 
+                          position="0 0 0" 
+                          scale="0.05 0.05 0.05" 
+                          rotation="90 0 0">
+            </a-gltf-model>
+        </a-entity>
+        
+    </a-scene>
+
+    <script>
+        // 監聽 MindAR 辨識成功的事件
+        const targetEntity = document.querySelector('#my-target');
+        const arButton = document.querySelector('#ar-button');
+
+        targetEntity.addEventListener("targetFound", event => {
+            console.log("成功照到機車目錄照片！");
+            arButton.style.display = "block"; // 秀出 1:1 投放按鈕
+        });
+
+        targetEntity.addEventListener("targetLost", event => {
+            console.log("相機移開了目錄。");
+            // 你可以決定移開時按鈕要不要消失，這裡我們讓它保持顯示，方便使用者按
+        });
+
+        // 按鈕點擊事件：切換到 1:1 平面投放
+        arButton.addEventListener("click", () => {
+            alert("正在切換至平面偵測模式... 請帶手機到空曠地面！");
+            // 這裡後續會加上觸發原生手機內建 WebXR 平面偵測（Scene Viewer）的代碼
+        });
+    </script>
+</body>
+</html>
