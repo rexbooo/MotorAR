@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yamaha R3 AR 導購系統</title>
+    <title>Yamaha R3 WebAR 導購系統</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-        /* UI 按鈕樣式：辨識成功後才會浮現 */
+        body { margin: 0; overflow: hidden; }
+        
+        /* 網頁 UI 提示與按鈕 */
         #ar-button {
             position: fixed;
             bottom: 50px;
             left: 50%;
             transform: translateX(-50%);
             padding: 18px 32px;
-            background-color: #00e676; /* 改成亮綠色更有科技感 */
+            background-color: #00e676;
             color: #121212;
             border: none;
             border-radius: 30px;
@@ -24,21 +26,31 @@
             box-shadow: 0 6px 20px rgba(0,230,118,0.4);
             display: none; 
             z-index: 999;
-            cursor: pointer;
-            animation: pulse 1.5s infinite;
         }
-        @keyframes pulse {
-            0% { transform: translateX(-50%) scale(1); }
-            50% { transform: translateX(-50%) scale(1.05); }
-            100% { transform: translateX(-50%) scale(1); }
+
+        #instruction {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 16px;
+            z-index: 999;
+            text-align: center;
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
 
-    <button id="ar-button">🏍️ 投放 1:1 真車到空地</button>
+    <div id="instruction">請將相機對準機車目錄照片</div>
+    <button id="ar-button">🏍️ 在網頁直接投放到空地</button>
 
-    <a-scene mindar-image="imageTargetSrc: ./targets.mind; missTolerance: 10;" 
+    <a-scene id="ar-scene" 
+             mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; missTolerance: 10;" 
              embedded color-space="sRGB" 
              renderer="colorManagement: true, physicallyCorrectLights" 
              vr-mode-ui="enabled: false" 
@@ -50,52 +62,41 @@
 
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity id="my-target" mindar-image-target="targetIndex: 0">
+        <a-entity id="image-target" mindar-image-target="targetIndex: 0">
             <a-gltf-model src="#r3Model" position="0 0 0" scale="0.05 0.05 0.05" rotation="90 0 0"></a-gltf-model>
         </a-entity>
+
+        <a-entity id="space-anchor" position="0 -1 -2" visible="false">
+            <a-gltf-model src="#r3Model" scale="1 1 1" rotation="0 180 0"></a-gltf-model>
+        </a-entity>
+        
     </a-scene>
 
     <script>
-        const targetEntity = document.querySelector('#my-target');
+        const imageTarget = document.querySelector('#image-target');
         const arButton = document.querySelector('#ar-button');
+        const instruction = document.querySelector('#instruction');
+        const spaceAnchor = document.querySelector('#space-anchor');
+        const arScene = document.querySelector('#ar-scene');
 
-        // 模型在 GitHub 上的絕對路徑 (AR 跳轉必須使用絕對路徑)
-        // 系統會自動根據當前網址抓取正確的 glb 路徑
-        const currentURL = window.location.href.replace('index.html', '');
-        const modelUrl = currentURL + "yamaha_yzf-r3_2017.glb"; 
-
-        // 1. 監聽目錄辨識
-        targetEntity.addEventListener("targetFound", () => {
-            arButton.style.display = "block"; 
+        // 1. 當掃描到目錄照片時
+        imageTarget.addEventListener("targetFound", () => {
+            arButton.style.display = "block";
+            instruction.innerText = "成功識別！請點擊下方按鈕進行空間投放";
         });
 
-        // 2. 點擊按鈕跳轉原生 1:1 平面偵測
+        // 2. 點擊按鈕：不跳出網頁，直接在原本網頁內切換模式
         arButton.addEventListener("click", () => {
-            // 判斷是否為 iOS 裝置 (iPhone/iPad)
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            arButton.style.display = "none"; // 隱藏按鈕
+            instruction.innerText = "請將手機對準空曠地面，車子將直接在網頁中生成";
 
-            if (isIOS) {
-                // 【iPhone 方案】：使用 Apple AR Quick Look 模式
-                // 這裡我們建立一個隱藏的 <a> 標籤，並將 rel 設為 ar，這是 Apple 官方指定的原生跳轉格式
-                const anchor = document.createElement('a');
-                anchor.setAttribute('rel', 'ar');
-                anchor.setAttribute('href', modelUrl);
-                
-                // 建立一個隱藏的圖片作為點擊載體
-                const img = document.createElement('img');
-                img.src = "yamahaR32017.jpg"; 
-                anchor.appendChild(img);
-                
-                document.body.appendChild(anchor);
-                anchor.click(); // 觸發跳轉
-                document.body.removeChild(anchor);
-            } else {
-                // 【Android 方案】：使用 Google Scene Viewer 模式
-                // 透過特定 intent 網址，直接喚醒 Android 系統內建的 ARCore 底層
-                const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(modelUrl)}&mode=ar_only&resizable=false&title=Yamaha%20R3%201:1%20展示#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;end;`;
-                
-                window.location.href = sceneViewerUrl; // 觸發跳轉
-            }
+            // 【核心技術切換】：停止影像追蹤系統，並將 1:1 模型在網頁的虛擬三維空間中解鎖顯示
+            // 這會把車子直接「定錨」在相機前方（相對於手機的坐標系）
+            spaceAnchor.setAttribute('visible', 'true');
+            
+            // 讓網頁內的相機開啟陀螺儀連動，這樣你走動時，車子才會留在原地，產生 AR 的感覺
+            const camera = document.querySelector('a-camera');
+            camera.setAttribute('look-controls', 'enabled: true');
         });
     </script>
 </body>
